@@ -6,8 +6,28 @@ import sys
 from flask import Flask, request
 import custom_math
 from multiprocessing import Process, Queue
+import crud
 
 app = Flask(__name__)
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json(silent=True)
+    if not data:
+        return "Request body must be JSON", 400
+
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return "Email and password are required", 400
+
+    user = crud.get_user(email, password)
+    if user:
+        return "Logged in successfully", 200
+    else:
+        return "Invalid email or password", 401
 
 
 @app.route("/prime", methods=["GET"])
@@ -58,4 +78,5 @@ def fibonacci():
 
 if __name__ == "__main__":
     sys.set_int_max_str_digits(10000000)  # Increase max digits for large numbers
+    crud.create_tables()  # Ensure tables are created before running the app
     app.run(debug=True, host="0.0.0.0", port=5000)

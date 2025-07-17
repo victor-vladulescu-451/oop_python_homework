@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:latest
+    container_name: postgres_database
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: VerySecurePassword123
+      POSTGRES_DB: app
+    volumes:
+      - postgres_database_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_database_data:
