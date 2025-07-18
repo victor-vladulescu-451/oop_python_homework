@@ -2,13 +2,21 @@
 # Custom math functions require multiprocessing
 # Passing values between processes can be done using Queues
 # https://docs.python.org/3/library/multiprocessing.html#pipes-and-queues
+import datetime
+import os
+from dotenv import load_dotenv
 import sys
-from flask import Flask, request
+from flask import Flask, jsonify, request
+from flask_jwt_extended import JWTManager, create_access_token
 import custom_math
 from multiprocessing import Process, Queue
 import crud
 
+load_dotenv()  # This loads variables from .env into os.environ
+
 app = Flask(__name__)
+app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
+jwt = JWTManager(app)
 
 
 @app.route("/login", methods=["POST"])
@@ -17,15 +25,18 @@ def login():
     if not data:
         return "Request body must be JSON", 400
 
-    email = data.get("email")
-    password = data.get("password")
+    email = request.json.get("email", None)
+    password = request.json.get("password", None)
 
     if not email or not password:
         return "Email and password are required", 400
 
     user = crud.get_user(email, password)
     if user:
-        return "Logged in successfully", 200
+        access_token = create_access_token(
+            identity=email, expires_delta=datetime.timedelta(hours=6)
+        )
+        return jsonify(access_token=access_token)
     else:
         return "Invalid email or password", 401
 
