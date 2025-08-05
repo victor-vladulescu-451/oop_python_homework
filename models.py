@@ -36,5 +36,5 @@ class MathResult(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     operation: str
     parameters: str  # JSON string of parameters
-    value: float
+    value: str
     calculation_time: int  # in milliseconds

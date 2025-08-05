@@ -26,6 +26,10 @@ def get_math_result(operation: str, parameters: str) -> Optional[MathResult]:
 
 def save_math_result(result: MathResult) -> MathResult:
 
+    existing_result = get_math_result(result.operation, result.parameters)
+    if existing_result:
+        return existing_result
+
     with get_session() as session:
         session.add(result)
         session.commit()

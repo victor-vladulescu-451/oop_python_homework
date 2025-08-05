@@ -27,7 +27,7 @@ def nth_prime(count: int):
                 primes.append(candidate)
                 count -= 1
 
-    return primes[-1]
+    return str(primes[-1])
 
 
 def nth_fibonacci(count: int):
@@ -42,13 +42,13 @@ def nth_fibonacci(count: int):
     for _ in range(2, count):
         a, b = b, a + b
 
-    return b
+    return str(b)
 
 
 def nth_pow(base: int, exponent: int):
     if exponent < 1:
         raise ValueError("Exponent must be higher than 0")
-    return base**exponent
+    return str(base**exponent)
 
 
 def nth_factorial(count: int):
@@ -57,10 +57,10 @@ def nth_factorial(count: int):
     result = 1
     for i in range(2, count + 1):
         result *= i
-    return result
+    return str(result)
 
 
 def nth_sum_of_natural_numbers(count: int):
     if count < 1:
         raise ValueError("Count must be higher than 0")
-    return count * (count + 1) // 2
+    return str(count * (count + 1) // 2)
