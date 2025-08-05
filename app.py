@@ -3,13 +3,15 @@
 # Passing values between processes can be done using Queues
 # https://docs.python.org/3/library/multiprocessing.html#pipes-and-queues
 import sys
-from flask import Flask, request
+from flask import Flask, request, render_template
 import custom_math
 from multiprocessing import Process, Queue
 import crud
 import atexit
+from database import get_session
+from models import SystemMetric
 from utils.monitoring.resource_monitor import ResourceMonitor
-
+from datetime import datetime
 
 monitor = ResourceMonitor(interval=1.0)
 app = Flask(__name__)
@@ -87,6 +89,36 @@ def fibonacci():
     return str(result)
 
 
+# -----------------------------------------------------------------
+# Visualization endpoint
+@app.route("/metrics")
+def metrics():
+    start = request.args.get("start")
+    end = request.args.get("end")
+    with get_session() as session:
+        query = session.query(SystemMetric)
+        if start:
+            start_dt = datetime.fromisoformat(start)
+            query = query.filter(SystemMetric.timestamp >= start_dt)
+        if end:
+            end_dt = datetime.fromisoformat(end)
+            query = query.filter(SystemMetric.timestamp <= end_dt)
+        metrics = query.order_by(SystemMetric.timestamp).all()
+    timestamps = [m.timestamp.isoformat() for m in metrics]
+    cpu = [m.total_cpu_usage for m in metrics]
+    ram = [m.total_ram_usage for m in metrics]
+    # Render Jinja2 template and pass data as JSON
+    return render_template(
+        "metrics.html",
+        timestamps=timestamps,
+        cpu=cpu,
+        ram=ram,
+    )
+
+
+# -----------------------------------------------------------------
+
+
 @app.route("/pow", methods=["GET"])
 def power():
     try:
@@ -108,7 +140,7 @@ def power():
     process.join()
 
     result = result_queue.get()
-    return str(result) 
+    return str(result)
 
 
 @app.route("/factorial", methods=["GET"])
@@ -131,10 +163,10 @@ def factorial():
     process.join()
 
     result = result_queue.get()
-    return str(result) 
+    return str(result)
 
 
-@app.route("/sum_of_natural_numbers", methods=["GET"]) 
+@app.route("/sum_of_natural_numbers", methods=["GET"])
 def sum_of_natural_numbers():
     try:
         count = int(request.args.get("count", 1))
@@ -154,8 +186,7 @@ def sum_of_natural_numbers():
     process.join()
 
     result = result_queue.get()
-    return str(result)   
-
+    return str(result)
 
 
 if __name__ == "__main__":
