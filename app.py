@@ -2,8 +2,13 @@
 # Custom math functions require multiprocessing
 # Passing values between processes can be done using Queues
 # https://docs.python.org/3/library/multiprocessing.html#pipes-and-queues
+import os
+import datetime
+from dotenv import load_dotenv
 import sys
-from flask import Flask, request, render_template
+from flask import Flask, jsonify, request, render_template
+from flask_jwt_extended import JWTManager, create_access_token
+from flask_jwt_extended import jwt_required
 import custom_math
 from multiprocessing import Process, Queue
 import crud
@@ -11,10 +16,13 @@ import atexit
 from database import get_session
 from models import SystemMetric
 from utils.monitoring.resource_monitor import ResourceMonitor
-from datetime import datetime
+
+load_dotenv()  # This loads variables from .env into os.environ
 
 monitor = ResourceMonitor(interval=1.0)
 app = Flask(__name__)
+app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
+jwt = JWTManager(app)
 
 
 @atexit.register
@@ -30,20 +38,49 @@ def login():
     if not data:
         return "Request body must be JSON", 400
 
-    email = data.get("email")
-    password = data.get("password")
+    email = request.json.get("email", None)
+    password = request.json.get("password", None)
 
     if not email or not password:
         return "Email and password are required", 400
 
     user = crud.get_user(email, password)
     if user:
-        return "Logged in successfully", 200
+        access_token = create_access_token(
+            identity=email, expires_delta=datetime.timedelta(hours=6)
+        )
+        return jsonify(access_token=access_token)
     else:
         return "Invalid email or password", 401
 
 
+@app.route("/metrics")
+def metrics():
+    start = request.args.get("start")
+    end = request.args.get("end")
+    with get_session() as session:
+        query = session.query(SystemMetric)
+        if start:
+            start_dt = datetime.datetime.fromisoformat(start)
+            query = query.filter(SystemMetric.timestamp >= start_dt)
+        if end:
+            end_dt = datetime.datetime.fromisoformat(end)
+            query = query.filter(SystemMetric.timestamp <= end_dt)
+        metrics = query.order_by(SystemMetric.timestamp).all()
+    timestamps = [m.timestamp.isoformat() for m in metrics]
+    cpu = [m.total_cpu_usage for m in metrics]
+    ram = [m.total_ram_usage for m in metrics]
+    # Render Jinja2 template and pass data as JSON
+    return render_template(
+        "metrics.html",
+        timestamps=timestamps,
+        cpu=cpu,
+        ram=ram,
+    )
+
+
 @app.route("/prime", methods=["GET"])
+@jwt_required()
 def prime():
     try:
         count = int(request.args.get("count", 1))
@@ -67,6 +104,7 @@ def prime():
 
 
 @app.route("/fibonacci", methods=["GET"])
+@jwt_required()
 def fibonacci():
     try:
         count = int(request.args.get("count", 1))
@@ -89,37 +127,8 @@ def fibonacci():
     return str(result)
 
 
-# -----------------------------------------------------------------
-# Visualization endpoint
-@app.route("/metrics")
-def metrics():
-    start = request.args.get("start")
-    end = request.args.get("end")
-    with get_session() as session:
-        query = session.query(SystemMetric)
-        if start:
-            start_dt = datetime.fromisoformat(start)
-            query = query.filter(SystemMetric.timestamp >= start_dt)
-        if end:
-            end_dt = datetime.fromisoformat(end)
-            query = query.filter(SystemMetric.timestamp <= end_dt)
-        metrics = query.order_by(SystemMetric.timestamp).all()
-    timestamps = [m.timestamp.isoformat() for m in metrics]
-    cpu = [m.total_cpu_usage for m in metrics]
-    ram = [m.total_ram_usage for m in metrics]
-    # Render Jinja2 template and pass data as JSON
-    return render_template(
-        "metrics.html",
-        timestamps=timestamps,
-        cpu=cpu,
-        ram=ram,
-    )
-
-
-# -----------------------------------------------------------------
-
-
 @app.route("/pow", methods=["GET"])
+@jwt_required()
 def power():
     try:
         base = int(request.args.get("base", 1))
@@ -144,6 +153,7 @@ def power():
 
 
 @app.route("/factorial", methods=["GET"])
+@jwt_required()
 def factorial():
     try:
         count = int(request.args.get("count", 1))
@@ -167,6 +177,7 @@ def factorial():
 
 
 @app.route("/sum_of_natural_numbers", methods=["GET"])
+@jwt_required()
 def sum_of_natural_numbers():
     try:
         count = int(request.args.get("count", 1))
