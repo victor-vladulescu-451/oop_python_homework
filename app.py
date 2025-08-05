@@ -7,8 +7,19 @@ from flask import Flask, request
 import custom_math
 from multiprocessing import Process, Queue
 import crud
+import atexit
+from utils.monitoring.resource_monitor import ResourceMonitor
 
+
+monitor = ResourceMonitor(interval=1.0)
 app = Flask(__name__)
+
+
+@atexit.register
+def stop_monitoring():
+    if monitor.is_alive():
+        monitor.stop()
+        monitor.join()
 
 
 @app.route("/login", methods=["POST"])
@@ -150,4 +161,7 @@ def sum_of_natural_numbers():
 if __name__ == "__main__":
     sys.set_int_max_str_digits(10000000)  # Increase max digits for large numbers
     crud.create_tables()  # Ensure tables are created before running the app
+    # Start the resource monitor thread
+    if not monitor.is_alive():
+        monitor.start()
     app.run(debug=True, host="0.0.0.0", port=5000)
