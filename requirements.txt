@@ -3,3 +3,5 @@ psycopg2-binary
 sqlmodel
 Flask-JWT-Extended
 dotenv
+matplotlib
+psutil
