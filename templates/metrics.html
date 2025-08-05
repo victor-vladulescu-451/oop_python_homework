@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Resource Metrics</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h2>CPU and RAM Usage Over Time</h2>
+    <div id="cpu-chart"></div>
+    <div id="ram-chart"></div>
+    <button id="download-csv">Download CSV</button>
+
+    <script>
+        const metricTimestamps = JSON.parse('{{ timestamps|tojson | safe }}');
+        const cpuData = JSON.parse('{{ cpu|tojson | safe }}');
+        const ramData = JSON.parse('{{ ram|tojson | safe }}');
+
+        // CPU Plot
+        Plotly.newPlot('cpu-chart', [{
+            x: metricTimestamps,
+            y: cpuData,
+            mode: 'lines+markers',
+            name: 'CPU Usage (%)'
+        }], {
+            title: 'CPU Usage (%) Over Time',
+            xaxis: { title: 'Timestamp' },
+            yaxis: { title: 'CPU (%)', range: [0, 100] }
+        });
+
+        // RAM Plot
+        Plotly.newPlot('ram-chart', [{
+            x: metricTimestamps,
+            y: ramData,
+            mode: 'lines+markers',
+            name: 'RAM Usage (%)',
+            line: { color: 'orange' }
+        }], {
+            title: 'RAM Usage (%) Over Time',
+            xaxis: { title: 'Timestamp' },
+            yaxis: { title: 'RAM (%)', range: [0, 100] }
+        });
+
+        // CSV Download
+        document.getElementById("download-csv").onclick = function() {
+            let csv = "timestamp,total_cpu_usage,total_ram_usage\n";
+            for (let i = 0; i < metricTimestamps.length; i++) {
+                csv += `${metricTimestamps[i]},${cpuData[i]},${ramData[i]}\n`;
+            }
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "metrics.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+    </script>
+</body>
+</html>
