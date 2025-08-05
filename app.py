@@ -9,10 +9,12 @@ from multiprocessing import Process, Queue
 import crud
 import atexit
 from utils.monitoring.resource_monitor import ResourceMonitor
+from flasgger import Swagger
 
 
 monitor = ResourceMonitor(interval=1.0)
 app = Flask(__name__)
+swagger = Swagger(app)
 
 
 @atexit.register
@@ -24,6 +26,30 @@ def stop_monitoring():
 
 @app.route("/login", methods=["POST"])
 def login():
+    """
+    User login endpoint.
+    ---
+    consumes:
+      - application/json
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+    responses:
+      200:
+        description: Logged in successfully
+      400:
+        description: Request body must be JSON or missing fields
+      401:
+        description: Invalid email or password
+    """
     data = request.get_json(silent=True)
     if not data:
         return "Request body must be JSON", 400
@@ -43,6 +69,23 @@ def login():
 
 @app.route("/prime", methods=["GET"])
 def prime():
+    """
+    Get the nth prime number.
+    ---
+    parameters:
+      - name: count
+        in: query
+        type: integer
+        required: true
+        description: The position of the prime number to return.
+    responses:
+      200:
+        description: The nth prime number
+        schema:
+          type: string
+      400:
+        description: Invalid request, count parameter must be a positive integer
+    """
     try:
         count = int(request.args.get("count", 1))
     except ValueError:
@@ -66,6 +109,23 @@ def prime():
 
 @app.route("/fibonacci", methods=["GET"])
 def fibonacci():
+    """
+    Get the nth Fibonacci number.
+    ---
+    parameters:
+      - name: count
+        in: query
+        type: integer
+        required: true
+        description: The position requested from the Fibonacci sequence.
+    responses:
+      200:
+        description: The nth Fibonacci number
+        schema:
+          type: string
+      400:
+        description: Invalid request, count parameter must be a positive integer
+    """
     try:
         count = int(request.args.get("count", 1))
     except ValueError:
@@ -89,6 +149,28 @@ def fibonacci():
 
 @app.route("/pow", methods=["GET"])
 def power():
+    """
+    Calculate base raised to the exponent.
+    ---
+    parameters:
+      - name: base
+        in: query
+        type: integer
+        required: true
+        description: The base number.
+      - name: exponent
+        in: query
+        type: integer
+        required: true
+        description: The exponent.
+    responses:
+      200:
+        description: The result of base ** exponent
+        schema:
+          type: string
+      400:
+        description: Invalid request, base and exponent parameters must be integers
+    """
     try:
         base = int(request.args.get("base", 1))
         exponent = int(request.args.get("exponent", 1))
@@ -113,6 +195,23 @@ def power():
 
 @app.route("/factorial", methods=["GET"])
 def factorial():
+    """
+    Get the factorial of a number.
+    ---
+    parameters:
+      - name: count
+        in: query
+        type: integer
+        required: true
+        description: The number to calculate factorial for.
+    responses:
+      200:
+        description: The factorial of the number
+        schema:
+          type: string
+      400:
+        description: Invalid request, count parameter must be a positive integer
+    """
     try:
         count = int(request.args.get("count", 1))
     except ValueError:
@@ -136,6 +235,23 @@ def factorial():
 
 @app.route("/sum_of_natural_numbers", methods=["GET"]) 
 def sum_of_natural_numbers():
+    """
+    Get the sum of the first n natural numbers.
+    ---
+    parameters:
+      - name: count
+        in: query
+        type: integer
+        required: true
+        description: The number of natural numbers to sum.
+    responses:
+      200:
+        description: The sum of the first n natural numbers
+        schema:
+          type: string
+      400:
+        description: Invalid request, count parameter must be a positive integer
+    """
     try:
         count = int(request.args.get("count", 1))
     except ValueError:
@@ -155,7 +271,6 @@ def sum_of_natural_numbers():
 
     result = result_queue.get()
     return str(result)   
-
 
 
 if __name__ == "__main__":
