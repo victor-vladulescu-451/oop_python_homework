@@ -48,7 +48,7 @@ def nth_fibonacci(count: int):
 def nth_pow(base: int, exponent: int):
     if exponent < 1:
         raise ValueError("Exponent must be higher than 0")
-    return base ** exponent
+    return base**exponent
 
 
 def nth_factorial(count: int):
