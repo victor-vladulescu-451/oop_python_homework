@@ -8,13 +8,13 @@ from dotenv import load_dotenv
 import sys
 from flask import Flask, jsonify, request, render_template
 from flask_jwt_extended import JWTManager, create_access_token
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt
 import custom_math
 from multiprocessing import Process, Queue
 import crud
 import atexit
 from database import get_session
-from models import SystemMetric
+from models import MathRequest, MathResult, SystemMetric
 from utils.monitoring.resource_monitor import ResourceMonitor
 
 load_dotenv()  # This loads variables from .env into os.environ
@@ -46,8 +46,11 @@ def login():
 
     user = crud.get_user(email, password)
     if user:
+        additional_claims = {"user_id": user.id}
         access_token = create_access_token(
-            identity=email, expires_delta=datetime.timedelta(hours=6)
+            identity=email,
+            expires_delta=datetime.timedelta(hours=6),
+            additional_claims=additional_claims,
         )
         return jsonify(access_token=access_token)
     else:
@@ -86,21 +89,50 @@ def prime():
         count = int(request.args.get("count", 1))
     except ValueError:
         return "Invalid request, count parameter must be a positive integer", 400
-    result_queue = Queue()
 
-    def worker(n, queue):
-        try:
-            res = custom_math.nth_prime(n)
-        except ValueError as e:
-            res = str(e)
-        queue.put(res)
+    math_result = crud.get_math_result("prime", str({"count": count}))
+    if math_result:
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(math_result.value)
+    else:
 
-    process = Process(target=worker, args=(count, result_queue))
-    process.start()
-    process.join()
+        result_queue = Queue()
 
-    result = result_queue.get()
-    return str(result)
+        def worker(n, queue):
+            try:
+                res = custom_math.nth_prime(n)
+            except ValueError as e:
+                res = str(e)
+            queue.put(res)
+
+        start_time = datetime.datetime.now()
+        process = Process(target=worker, args=(count, result_queue))
+        process.start()
+        process.join()
+        end_time = datetime.datetime.now()
+
+        math_result = MathResult(
+            operation="prime",
+            parameters=str({"count": count}),
+            value=result_queue.get(),
+            calculation_time=int(
+                (end_time - start_time) / datetime.timedelta(microseconds=1)
+            ),
+            user_id=get_jwt()["user_id"],
+        )
+        crud.save_math_result(math_result)
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(math_result.value)
 
 
 @app.route("/fibonacci", methods=["GET"])
@@ -110,21 +142,157 @@ def fibonacci():
         count = int(request.args.get("count", 1))
     except ValueError:
         return "Invalid request, count parameter must be a positive integer", 400
-    result_queue = Queue()
 
-    def worker(n, queue):
-        try:
-            res = custom_math.nth_fibonacci(n)
-        except ValueError as e:
-            res = str(e)
-        queue.put(res)
+    math_result = crud.get_math_result("fibonacci", str({"count": count}))
+    if math_result:
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(math_result.value)
 
-    process = Process(target=worker, args=(count, result_queue))
-    process.start()
-    process.join()
+    else:
+        result_queue = Queue()
 
-    result = result_queue.get()
-    return str(result)
+        def worker(n, queue):
+            try:
+                res = custom_math.nth_fibonacci(n)
+            except ValueError as e:
+                res = str(e)
+            queue.put(res)
+
+        start_time = datetime.datetime.now()
+        process = Process(target=worker, args=(count, result_queue))
+        process.start()
+        process.join()
+        end_time = datetime.datetime.now()
+
+        math_result = MathResult(
+            operation="fibonacci",
+            parameters=str({"count": count}),
+            value=result_queue.get(),
+            calculation_time=int(
+                (end_time - start_time) / datetime.timedelta(microseconds=1)
+            ),
+            user_id=get_jwt()["user_id"],
+        )
+        crud.save_math_result(math_result)
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(math_result.value)
+
+
+@app.route("/factorial", methods=["GET"])
+@jwt_required()
+def factorial():
+    try:
+        count = int(request.args.get("count", 1))
+    except ValueError:
+        return "Invalid request, count parameter must be a positive integer", 400
+
+    math_result = crud.get_math_result("factorial", str({"count": count}))
+    if math_result:
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(math_result.value)
+
+    else:
+
+        result_queue = Queue()
+
+        def worker(n, queue):
+            try:
+                res = custom_math.nth_factorial(n)
+            except ValueError as e:
+                res = str(e)
+            queue.put(res)
+
+        start_time = datetime.datetime.now()
+        process = Process(target=worker, args=(count, result_queue))
+        process.start()
+        process.join()
+        end_time = datetime.datetime.now()
+
+        math_result = MathResult(
+            operation="factorial",
+            parameters=str({"count": count}),
+            value=result_queue.get(),
+            calculation_time=int(
+                (end_time - start_time) / datetime.timedelta(microseconds=1)
+            ),
+            user_id=get_jwt()["user_id"],
+        )
+        crud.save_math_result(math_result)
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(math_result.value)
+
+
+@app.route("/sum_of_natural_numbers", methods=["GET"])
+@jwt_required()
+def sum_of_natural_numbers():
+    try:
+        count = int(request.args.get("count", 1))
+    except ValueError:
+        return "Invalid request, count parameter must be a positive integer", 400
+
+    math_result = crud.get_math_result("sum_of_natural_numbers", str({"count": count}))
+    if math_result:
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(math_result.value)
+
+    else:
+        result_queue = Queue()
+
+        def worker(n, queue):
+            try:
+                res = custom_math.nth_sum_of_natural_numbers(n)
+            except ValueError as e:
+                res = str(e)
+            queue.put(res)
+
+        start_time = datetime.datetime.now()
+        process = Process(target=worker, args=(count, result_queue))
+        process.start()
+        process.join()
+        end_time = datetime.datetime.now()
+
+        math_result = MathResult(
+            operation="sum_of_natural_numbers",
+            parameters=str({"count": count}),
+            value=result_queue.get(),
+            calculation_time=int(
+                (end_time - start_time) / datetime.timedelta(microseconds=1)
+            ),
+            user_id=get_jwt()["user_id"],
+        )
+        crud.save_math_result(math_result)
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(math_result.value)
 
 
 @app.route("/pow", methods=["GET"])
@@ -152,56 +320,8 @@ def power():
     return str(result)
 
 
-@app.route("/factorial", methods=["GET"])
-@jwt_required()
-def factorial():
-    try:
-        count = int(request.args.get("count", 1))
-    except ValueError:
-        return "Invalid request, count parameter must be a positive integer", 400
-    result_queue = Queue()
-
-    def worker(n, queue):
-        try:
-            res = custom_math.nth_factorial(n)
-        except ValueError as e:
-            res = str(e)
-        queue.put(res)
-
-    process = Process(target=worker, args=(count, result_queue))
-    process.start()
-    process.join()
-
-    result = result_queue.get()
-    return str(result)
-
-
-@app.route("/sum_of_natural_numbers", methods=["GET"])
-@jwt_required()
-def sum_of_natural_numbers():
-    try:
-        count = int(request.args.get("count", 1))
-    except ValueError:
-        return "Invalid request, count parameter must be a positive integer", 400
-    result_queue = Queue()
-
-    def worker(n, queue):
-        try:
-            res = custom_math.nth_sum_of_natural_numbers(n)
-        except ValueError as e:
-            res = str(e)
-        queue.put(res)
-
-    process = Process(target=worker, args=(count, result_queue))
-    process.start()
-    process.join()
-
-    result = result_queue.get()
-    return str(result)
-
-
 if __name__ == "__main__":
-    sys.set_int_max_str_digits(10000000)  # Increase max digits for large numbers
+    sys.set_int_max_str_digits(0)  # Increase max digits for large numbers
     crud.create_tables()  # Ensure tables are created before running the app
     # Start the resource monitor thread
     if not monitor.is_alive():
