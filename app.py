@@ -8,13 +8,13 @@ from dotenv import load_dotenv
 import sys
 from flask import Flask, jsonify, request, render_template
 from flask_jwt_extended import JWTManager, create_access_token
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt
 import custom_math
 from multiprocessing import Process, Queue
 import crud
 import atexit
 from database import get_session
-from models import SystemMetric
+from models import MathRequest, MathResult, SystemMetric
 from utils.monitoring.resource_monitor import ResourceMonitor
 
 load_dotenv()  # This loads variables from .env into os.environ
@@ -46,8 +46,11 @@ def login():
 
     user = crud.get_user(email, password)
     if user:
+        additional_claims = {"user_id": user.id}
         access_token = create_access_token(
-            identity=email, expires_delta=datetime.timedelta(hours=6)
+            identity=email,
+            expires_delta=datetime.timedelta(hours=6),
+            additional_claims=additional_claims,
         )
         return jsonify(access_token=access_token)
     else:
@@ -86,21 +89,50 @@ def prime():
         count = int(request.args.get("count", 1))
     except ValueError:
         return "Invalid request, count parameter must be a positive integer", 400
-    result_queue = Queue()
 
-    def worker(n, queue):
-        try:
-            res = custom_math.nth_prime(n)
-        except ValueError as e:
-            res = str(e)
-        queue.put(res)
+    math_result = crud.get_math_result("prime", str({"count": count}))
+    if math_result:
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(int(math_result.value))
+    else:
 
-    process = Process(target=worker, args=(count, result_queue))
-    process.start()
-    process.join()
+        result_queue = Queue()
 
-    result = result_queue.get()
-    return str(result)
+        def worker(n, queue):
+            try:
+                res = custom_math.nth_prime(n)
+            except ValueError as e:
+                res = str(e)
+            queue.put(res)
+
+        start_time = datetime.datetime.now()
+        process = Process(target=worker, args=(count, result_queue))
+        process.start()
+        process.join()
+        end_time = datetime.datetime.now()
+
+        math_result = MathResult(
+            operation="prime",
+            parameters=str({"count": count}),
+            value=result_queue.get(),
+            calculation_time=int(
+                (end_time - start_time) / datetime.timedelta(microseconds=1)
+            ),
+            user_id=get_jwt()["user_id"],
+        )
+        crud.save_math_result(math_result)
+        math_request = MathRequest(
+            requested_at=datetime.datetime.now(),
+            user_id=get_jwt()["user_id"],
+            result_id=math_result.id,
+        )
+        crud.save_math_request(math_request)
+        return str(int(math_result.value))
 
 
 @app.route("/fibonacci", methods=["GET"])
