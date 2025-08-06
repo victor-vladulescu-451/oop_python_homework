@@ -16,11 +16,25 @@ import atexit
 from database import get_session
 from models import MathRequest, MathResult, SystemMetric
 from utils.monitoring.resource_monitor import ResourceMonitor
+from flasgger import Swagger
 
 load_dotenv()  # This loads variables from .env into os.environ
 
 monitor = ResourceMonitor(interval=1.0)
 app = Flask(__name__)
+SWAGGER_TEMPLATE = {
+    "securityDefinitions": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"',
+        }
+    },
+    "security": [{"Bearer": []}],
+}
+
+swagger = Swagger(app, template=SWAGGER_TEMPLATE)
 app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
 jwt = JWTManager(app)
 
@@ -34,6 +48,30 @@ def stop_monitoring():
 
 @app.route("/login", methods=["POST"])
 def login():
+    """
+    User login endpoint.
+    ---
+    consumes:
+      - application/json
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+    responses:
+      200:
+        description: Logged in successfully
+      400:
+        description: Request body must be JSON or missing fields
+      401:
+        description: Invalid email or password
+    """
     data = request.get_json(silent=True)
     if not data:
         return "Request body must be JSON", 400
@@ -85,6 +123,23 @@ def metrics():
 @app.route("/prime", methods=["GET"])
 @jwt_required()
 def prime():
+    """
+    Get the nth prime number.
+    ---
+    parameters:
+      - name: count
+        in: query
+        type: integer
+        required: true
+        description: The position of the prime number to return.
+    responses:
+      200:
+        description: The nth prime number
+        schema:
+          type: string
+      400:
+        description: Invalid request, count parameter must be a positive integer
+    """
     try:
         count = int(request.args.get("count", 1))
     except ValueError:
@@ -138,6 +193,23 @@ def prime():
 @app.route("/fibonacci", methods=["GET"])
 @jwt_required()
 def fibonacci():
+    """
+    Get the nth Fibonacci number.
+    ---
+    parameters:
+      - name: count
+        in: query
+        type: integer
+        required: true
+        description: The position requested from the Fibonacci sequence.
+    responses:
+      200:
+        description: The nth Fibonacci number
+        schema:
+          type: string
+      400:
+        description: Invalid request, count parameter must be a positive integer
+    """
     try:
         count = int(request.args.get("count", 1))
     except ValueError:
@@ -245,6 +317,23 @@ def factorial():
 @app.route("/sum_of_natural_numbers", methods=["GET"])
 @jwt_required()
 def sum_of_natural_numbers():
+    """
+    Get the factorial of a number.
+    ---
+    parameters:
+      - name: count
+        in: query
+        type: integer
+        required: true
+        description: The number to calculate factorial for.
+    responses:
+      200:
+        description: The factorial of the number
+        schema:
+          type: string
+      400:
+        description: Invalid request, count parameter must be a positive integer
+    """
     try:
         count = int(request.args.get("count", 1))
     except ValueError:
@@ -298,6 +387,28 @@ def sum_of_natural_numbers():
 @app.route("/pow", methods=["GET"])
 @jwt_required()
 def power():
+    """
+    Calculate base raised to the exponent.
+    ---
+    parameters:
+      - name: base
+        in: query
+        type: integer
+        required: true
+        description: The base number.
+      - name: exponent
+        in: query
+        type: integer
+        required: true
+        description: The exponent.
+    responses:
+      200:
+        description: The result of base ** exponent
+        schema:
+          type: string
+      400:
+        description: Invalid request, base and exponent parameters must be integers
+    """
     try:
         base = int(request.args.get("base", 1))
         exponent = int(request.args.get("exponent", 1))
@@ -317,7 +428,7 @@ def power():
     process.join()
 
     result = result_queue.get()
-    return str(result)
+    return str(result) 
 
 
 if __name__ == "__main__":

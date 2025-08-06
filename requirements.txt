@@ -1,4 +1,5 @@
 flask
+flasgger
 psycopg2-binary
 sqlmodel
 Flask-JWT-Extended
