@@ -22,7 +22,19 @@ load_dotenv()  # This loads variables from .env into os.environ
 
 monitor = ResourceMonitor(interval=1.0)
 app = Flask(__name__)
-swagger = Swagger(app)
+SWAGGER_TEMPLATE = {
+    "securityDefinitions": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"',
+        }
+    },
+    "security": [{"Bearer": []}],
+}
+
+swagger = Swagger(app, template=SWAGGER_TEMPLATE)
 app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
 jwt = JWTManager(app)
 
