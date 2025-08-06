@@ -13,6 +13,9 @@ class User(SQLModel, table=True):
 
 
 class SystemMetric(SQLModel, table=True):
+
+    __tablename__ = "system_metrics"
+
     id: int = Field(default=None, primary_key=True)
     timestamp: datetime = Field(default_factory=datetime.now)
     total_cpu_usage: float  # percent, e.g. 12.51

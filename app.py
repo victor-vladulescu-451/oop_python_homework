@@ -28,7 +28,8 @@ SWAGGER_TEMPLATE = {
             "type": "apiKey",
             "name": "Authorization",
             "in": "header",
-            "description": 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"',
+            "description": "JWT Authorization header using the Bearer scheme."
+            + 'Example: "Authorization: Bearer {token}"',
         }
     },
     "security": [{"Bearer": []}],
@@ -97,6 +98,25 @@ def login():
 
 @app.route("/metrics")
 def metrics():
+    """
+    Get system metrics.
+    Retrieves CPU and RAM usage metrics.
+    ---
+    parameters:
+      - name: start
+        in: query
+        type: string
+        required: false
+        description: Starting datetime in ISO format (e.g., 2023-10-01T00:00:00Z)
+      - name: end
+        in: query
+        type: string
+        required: false
+        description: Ending datetime in ISO format (e.g., 2023-10-01T23:59:59Z)
+    responses:
+      200:
+        description: Retrieved system metrics
+    """
     start = request.args.get("start")
     end = request.args.get("end")
     with get_session() as session:
@@ -263,6 +283,23 @@ def fibonacci():
 @app.route("/factorial", methods=["GET"])
 @jwt_required()
 def factorial():
+    """
+    Calculate factorial of N.
+    ---
+    parameters:
+      - name: count
+        in: query
+        type: integer
+        required: true
+        description: The factorial of N.
+    responses:
+      200:
+        description: The factorial of N
+        schema:
+          type: string
+      400:
+        description: Invalid request, count parameter must be a positive integer
+    """
     try:
         count = int(request.args.get("count", 1))
     except ValueError:
@@ -318,17 +355,17 @@ def factorial():
 @jwt_required()
 def sum_of_natural_numbers():
     """
-    Get the factorial of a number.
+    Get the sum of all integers from 1 to N.
     ---
     parameters:
       - name: count
         in: query
         type: integer
         required: true
-        description: The number to calculate factorial for.
+        description: The number to calculate the sum for.
     responses:
       200:
-        description: The factorial of the number
+        description: The sum of integer range
         schema:
           type: string
       400:
@@ -428,7 +465,7 @@ def power():
     process.join()
 
     result = result_queue.get()
-    return str(result) 
+    return str(result)
 
 
 if __name__ == "__main__":
